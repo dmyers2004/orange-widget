@@ -21,6 +21,14 @@ class lex_widget extends lex_plugin {
 	
 	{{ lex.widget widget="examplex:position" format="dark" cache="5" }}
 	
+	- or -
+	
+	{{ lex.widget.build element="br" widget="examplex:exact" exact="UI Design" }}
+
+	- or -
+
+	{{ lex.widget.build element="span" widget="examplex:exact" exact="Pizza" }}Cookies!</span>
+	
 	*/
 	public function show($options,$content) {
 		ci()->load->library('widget');
