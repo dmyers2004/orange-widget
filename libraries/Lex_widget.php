@@ -27,5 +27,11 @@ class lex_widget extends lex_plugin {
 		
 		return ci()->widget->show($options);
 	}
+	
+	public function build($options,$content) {
+		ci()->load->library('widget');
+
+		return ci()->widget->widget($options['element'],$options['widget'],$options);		
+	}
 
 } /* end class */

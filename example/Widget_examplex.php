@@ -11,6 +11,10 @@ class Widget_examplex {
 		return $txt;
 	}
 
+	public function position($options) {
+		return 'developer '.$options['format'];	
+	}
+
 	public function br($options) {
 		return 'boom boom boom';
 	}
@@ -26,6 +30,10 @@ class Widget_examplex {
 		}
 		
 		return 'beats me?';
+	}
+	
+	public function exact($options) {
+		return $options['exact'];	
 	}
 
 } /* end class */

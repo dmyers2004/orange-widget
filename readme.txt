@@ -34,6 +34,13 @@ If your not using page keys and the developer is controlling the cache length (i
 
 This provides the designers with very powerful tools without needing to understand the complex under workings.
 
+Example 4 - Designers using LEX template engine in the views
+This allows the designers to add widget elements and widget ajax wrappers to the view html so they don't need to learn PHP
+Note: this is using standard widget token & cache rules as well as standard LEX cache rules
 
+* build the widget dynamic HTML and add it to the page:
+<h3>{{ lex.widget.build element="br" widget="examplex:exact" exact="UI Design" }}</h3>
 
+* call a widget as a LEX Callback during page render
+<h2>{{ lex.widget widget="examplex:position" format="magic" }}Designer{{ /lex.widget }}</h2>
 
