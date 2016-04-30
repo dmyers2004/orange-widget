@@ -17,7 +17,8 @@
     ],
     "require": {
         "php": ">=5.5",
-        "projectorangebox/orange": "dev-master"
+        "projectorangebox/orange": "dev-master",
+        "projectorangebox/librarian": "dev-master"
     },
     "orange": {
         "version": "1.0.0",
