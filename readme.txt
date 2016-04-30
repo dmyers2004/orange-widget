@@ -10,7 +10,7 @@ Note:
 All options a "optional" in this example they are specifying:
 A cache of 60 minutes (of course this can be overridden by the developer in the widget code as needed)
 A format option of fullname the widget may have a default (and usually should) incase the designer doesn't specify the value
-A wkey (widget key) which is a page specific token only valid for this page request. This insures the page was actually requested and not simply a ajax call without the page request
+A wkey (widget key) which is a page specific token only valid for this page request. This insures the page was actually requested and not simply a ajax call without the page request this requirement is configurable
 
 Example 2 - using the <br> tag (which is replaced)
 
@@ -19,6 +19,7 @@ Example 2 - using the <br> tag (which is replaced)
 This is replaced by <br data-widget="examplex:name"> which is replaced completely with the ajax output
 
 Example 3 - put directly in the HTML
+
 Since many times your designers are building your views and don't normally need to known or understand PHP or about the controller/models. They can add the tags directly to the page
 
 In the above example a designer could add directly to the HTML
