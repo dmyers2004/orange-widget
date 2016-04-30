@@ -1,32 +1,38 @@
-Add Ajax Handler to Controller to handle the ajax calls
-which come back from the javascript version of widget
+Add a Ajax callback to your html pages with optional page token
 
-load the library
-$this->load->library('widget');
+Example 1 - use the library to build the html tag with default html incase ajax isn't run:
 
-grab the command from the posted input
-$command = $this->input->post('command');
+<h1>Hello, my name is <b><?=widget::build('span','examplex:name',['cache'=>60,'format'=>'fullname']) ?>Peter Gunn</span></b></h1>
 
-send it into the widget request method
-$html = $this->widget->request($command);
+This is replaced by <span data-widget="examplex:name" data-cache="60" data-format="fullname" data-wkey="01761958959bf64bca078dbeb562785c61c7dac3">
 
-fill codeigniters output and allow it to be sent
-$this->output->set_output($html);
+Note:
+All options a "optional" in this example they are specifying:
+A cache of 60 minutes (of course this can be overridden by the developer in the widget code as needed)
+A format option of fullname the widget may have a default (and usually should) incase the designer doesn't specify the value
+A wkey (widget key) which is a page specific token only valid for this page request. This insures the page was actually requested and not simply a ajax call without the page request
 
-Of course you can put that all in 1 line!
+Example 2 - using the <br> tag (which is replaced)
 
-public function widget_handlerPostAction() {
-	$this->load->library('widget');
+<h1>Hello, my name is <b><?=widget::build('br','examplex:name') ?></b></h1>
 
-	$this->output->set_output($this->widget->request($this->input->post('command')));
-}
+This is replaced by <br data-widget="examplex:name"> which is replaced completely with the ajax output
 
-Render in PHP before sent to the browser
-<?=Widget::show('blog/posts:entry limit="5" sort="publish_on" dir="desc"') ?>
+Example 3 - put directly in the HTML
+Since many times your designers are building your views and don't normally need to known or understand PHP or about the controller/models. They can add the tags directly to the page
 
-Added to the HTML to have the html loaded dynamically
-<command widget="blog/posts:entry" sort="publish_on" dir="desc" wkey="<?=$widget_token ?>">
+In the above example a designer could add directly to the HTML
 
-Added to the HTML to have the above html created dynamically
+<h1>Hello, my name is <b><span data-widget="examplex:name" data-cache="60" data-format="fullname" <?=widget::key() ?>>Peter Gunn</span></b></h1>
 
-<?=Widget::command('blog/posts:entry',['limit'=>5,'sort'=>'publish_on','dir'=>'desc']) ?>
+or simply
+
+<h1>Hello, my name is <b><span data-widget="examplex:name" data-format="fullname">Peter Gunn</span></b></h1>
+
+If your not using page keys and the developer is controlling the cache length (if any)
+
+This provides the designers with very powerful tools without needing to understand the complex under workings.
+
+
+
+

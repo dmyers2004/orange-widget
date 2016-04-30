@@ -12,113 +12,82 @@
 */
 class Widget {
 	/* per page request token */
-	static public $token_set = false;
+	public $token_set = false;
 
-	/* where is the Ajax Handler - attached to main controller by default */
-	public $handler_url = '/main/widget_handler';
+	/* what html element selector are we looking for? */
+	public $selector;
+
+	/* where is the Ajax Handler  */
+	public $handler_url;
 
 	public function __construct() {
-		/* if it's not a ajax request (ie browser request) refresh the token */
-		if (!ci()->input->is_ajax_request()) {
-			/* create a new page request if not ajax (ie in page requests) */
-			self::$token_set = sha1(uniqid());
+		/* set these up from the configs or just use the defaults */
+		$this->selector = setting('widget','selector','[data-widget]');
+		$this->handler_url = setting('widget','handler_url','/widget_handler');
+		
+		/* use token */
+		$use_token = setting('widget','use_token',false);
 
-			/* save it for each ajax request */
-			ci()->session->set_userdata('widget_token',self::$token_set);
+		/* if it's a ajax request then the token is already set */
+		if (ci()->input->is_ajax_request()) {
+			if ($use_token) {
+				$this->token_set = ci()->session->userdata('widget_token');
+			}
 		} else {
-			self::$token_set = ci()->session->userdata('widget_token');
-		}
+			if ($use_token) {
+				/* This is the html page request so setup page token */
+				$this->token_set = sha1(uniqid());
 
-		/*
-		add it to a page variable incase we want to add it manually
-		add the dynamic ajax requester
-		*/
-		ci()->page
-			->data('widget_token',self::$token_set)
-			->script('$(function(){$(\'command\').each(function(){var t=this;$.post(\''.$this->handler_url.'\',{"command":$(this).wrap(\'<span>\').parent().html()},function(responds){$(t).parent().html(responds);});});});');
+				/* save it for each ajax request */
+				ci()->session->set_userdata('widget_token',$this->token_set);
+
+				/* add it to a page variable incase we want to add it manually without */
+				ci()->page->data('widget_token',$this->token_set);
+			}
+
+			/* add the dynamic ajax requester */
+			ci()->page->domready(str_replace(['%%selector%%','%%handler%%'],[$this->selector,$this->handler_url],file_get_contents(__DIR__.'/domready.min.js')));
+		}
 	}
 
-	public function request($command) {
-		$this->load->library('security');
-		
-		$command = $this->security->xss_clean($command);
-		
-		$command = str_replace('</command>','',$command);
-		$command = str_replace('command widget="','',$command);
+	/* used by the controller "handler" */
+	public function request($options) {
+		$reply = '{{Token Error}}';
 
-		$first_quote = strpos($command,'"');
-		$command = substr($command,0,$first_quote).substr($command,$first_quote+1);
-
-		$reply = 'Token Error';
-
-		/* grab the token from the ajax request */
-		$bol = preg_match("/wkey=\"([0-9a-fA-F]*)\"/", $command, $matches);
-
-		/* did it return 1 entry? */
-		if ($bol === 1) {
-			/* does the token match the session token */
-			if ($matches[1] === self::$token_set) {
-				/* let's take the token out */
-				$command = str_replace($matches[0],'',$command);
-
-				/* run the widget */
-				$reply = self::show($command);
-			}
+		/* is the token correct? */
+		if ($options['wkey'] === $this->token_set || $this->token_set === false) {
+			/* run the widget */
+			$reply = $this->show($options);
 		}
 
 		return $reply;
 	}
 
-	/**
-   * Runs a callback method and returns the contents to the view, allowing
-   * you to create re-usable, cacheable "widgets" for your views.
-   *
-   * Example:
-   *     widget::show('blog/posts:list limit="5" sort="publish_on" dir="desc"');
-   *
-   * blog/posts is the library (in folder blog in this example)
-   * list is the method
-   * parameters
-   *
-   * optional parameter cache="3600" to set the cache length
-   *
-   * @param string $command
-   * @return mixed|void
-   */
-	public static function show($command) {
-		/*
-		Users should be allowed to customize the cache name
-		so they can account for user role, logged in status,
-		or simply be able to easily clear the cache items elsewhere.
-		*/
-
-		$cache_name = 'widget_'.md5($command);
+	/* Runs a callback method and returns the contents to the view */
+	public function show($options) {
+		$cache_name = 'widget_'.md5(json_encode($options));
 
 		if (!$output = ci()->cache->get($cache_name)) {
-			/* remove < > ? */
-			$command = trim($command,'<>');
+			/* add a validation rule just for widgets */
+			ci()->validate->attach('widget_command',function($validate,$field,$options) {
+				/* make sure we only have 2 parts ie 1 colon */
+				if (count(explode(':',$field)) !== 2) {
+					return false;
+				}
 
-			/* find that first space */
-			$first_space = strpos($command,' ');
-
-			if ($first_space === false) {
-				$first_space = strlen($command);
+				return (bool)(preg_match("#^[0-9A-Za-z\/:_]+$#", $field));
+			});
+			
+			/* validate the library and class */
+			if (!ci()->input->is_valid('required|max_length[64]|widget_command',$options['widget'],false)) {
+				show_404(); /* validation failed */
 			}
 
-			/* split off the library and method */
-			list($class, $method) = explode(':',substr($command,0,$first_space));
+			/* verification passed - split off the library and method */
+			list($class, $method) = explode(':',$options['widget'],2);
 
 			/* add widget to the begining of the class name */
 			$classname = 'Widget_'.basename($class);
-
-			/* use the simple xml parser to convert "attrubutes" to values */
-			try {
-				$params = new SimpleXMLElement('<element '.substr($command,$first_space + 1).' />');
-			} catch (Exception $e) {
-				return 'Error parsing parameters for '.trim(dirname($class).'/'.$classname,'/').'::'.$method;
-			}
-
-			$params = (array)$params;
 
 			/*
 			Let PHP try to autoload it through any available autoloaders
@@ -138,14 +107,16 @@ class Widget {
 			}
 
 			if (!method_exists($obj, $method)) {
-				return 'can\'t find '.$class.':'.$method;
+				log_error('debug','can\'t find method '.$class.'>'.$method);
+
+				show_404(); /* failed */
 			}
 
 			/* Call the class with our parameters */
-			$output = $obj->{$method}($params['@attributes']);
+			$output = $obj->{$method}($options);
 
 			/* cache length - use parameter cache="0" for no cache */
-			$cache_ttl = (isset($params['@attributes']['cache'])) ? (int)$params['@attributes']['cache'] : setting('config','cache_ttl');
+			$cache_ttl = (isset($options['cache'])) ? (int)$options['cache'] : setting('config','cache_ttl');
 
 			/* cache it */
 			if ($cache_ttl > 0) {
@@ -156,20 +127,34 @@ class Widget {
 		return $output;
 	}
 
-	/* <command widget="blog/posts:no_cache_entry" limit="5" sort="publish_on" dir="desc"> */
-	public static function command($call,$options=[]) {
-		$options_text = '';
+	/* <span data-widget="blog/posts:no_cache_entry" data-limit="5" data-sort="publish_on" data-dir="desc"></span> */
+	public function widget($element,$call,$options=[]) {
+		$options_text = '<'.$element.' ';
+		
+		$options['widget'] = $call;
 
-		foreach ($options as $k=>$v) {
-			$options_text .= $k.'="'.$v.'" ';
+		if ($this->token_set) {
+			$options['wkey'] = $this->token_set;
 		}
 
-		return '<command widget="'.$call.'" '.$options_text.'wkey="'.self::$token_set.'">';
+		foreach ($options as $k=>$v) {
+			$options_text .= 'data-'.$k.'="'.$v.'" ';
+		}
+
+		return $options_text.'">';
 	}
 
 	/* merge incoming data with the defaults - only allow key in the default - strip the rest */
-	public static function merge($data=[],$defaults=[]) {
+	public function merge($data=[],$defaults=[]) {
 		return array_diff_key((array)$defaults,(array)$data) + array_intersect_key((array)$data,(array)$defaults);
+	}
+
+	public static function build($element,$call,$options=[]) {
+		echo ci()->widget->widget($element,$call,$options);
+	}
+	
+	public static function key() {
+		echo (!ci()->widget->token_set) ? '' : 'data-wkey="'.ci()->widget->token_set.'"';
 	}
 
 } /* end class */
