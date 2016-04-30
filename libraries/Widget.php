@@ -65,7 +65,21 @@ class Widget {
 
 	/* Runs a callback method and returns the contents to the view */
 	public function show($options) {
-		$cache_name = 'widget_'.md5(json_encode($options));
+		if ($options['user'] == 'true') {
+$options['user_id'] = ci()->auth->user_id; // if set test needed
+}
+
+if ($options['role'] == 'true') {
+// same with tests
+}
+
+// test if array key exists for
+// cacahe override, user override, role override
+// token override - need to move a little around for this
+
+
+
+$cache_name = 'widget_'.md5(json_encode($options));
 
 		if (!$output = ci()->cache->get($cache_name)) {
 			/* add a validation rule just for widgets */
